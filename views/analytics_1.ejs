@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deep Dive Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .analytics-container { max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+
+        /* Navigation Buttons */
+        .btn-group { display: flex; gap: 15px; margin-bottom: 20px; justify-content: center; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .nav-btn { 
+            padding: 10px 20px; cursor: pointer; border: none; border-radius: 30px; 
+            background-color: #e9ecef; color: #555; font-weight: 600; transition: 0.3s;
+        }
+        .nav-btn.active { background-color: #007bff; color: white; }
+
+        .chart-section { display: none; }
+        .chart-section.active { display: block; animation: fadeIn 0.4s ease-in; }
+
+        /* Controls Area */
+        .controls-row {
+            display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; 
+            background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef;
+        }
+
+        /* Checkbox Grid */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+        .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;}
+        .checkbox-item input { cursor: pointer; }
+
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; font-size: 13px; color: #555; }
+        select, input[type="date"] { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; }
+        
+        .action-btn {
+            margin-top: 20px;
+            padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        .action-btn:hover { background-color: #218838; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="analytics-container">
+    <h2>📊 Plant Analytics Dashboard</h2>
+
+    <div class="btn-group">
+        <button class="nav-btn active" onclick="switchView('parameter')">Parameter Analysis</button>
+        <button class="nav-btn" onclick="switchView('chemical')">Chemical Usage</button>
+        <button class="nav-btn" onclick="switchView('breakdown')">Breakdown Stats</button>
+    </div>
+
+    <div id="parameter" class="chart-section active">
+        
+        <div class="controls-row">
+            <div class="form-group">
+                <label>Line:</label>
+                <select id="lineSelect" onchange="filterBathsByLine()">
+                    <option value="1">Line 01</option>
+                    <option value="2">Line 02</option>
+                </select>
+                
+                <label style="margin-top:5px">Bath:</label>
+                <select id="bathSelect"></select>
+            </div>
+
+            <div class="form-group">
+                <label>Select Parameters:</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="temp" checked> Temperature
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="ph"> pH Level
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="fralka"> Free Alkali Pointage
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="ta"> TA (Total Acid)
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="fa"> FA (Free Acid)
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="iron"> Iron Content
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="oil"> Oil Content
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="param-chk" value="starch"> Starch Colour
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>From:</label>
+                <input type="date" id="startDate">
+                <label style="margin-top:5px">To:</label>
+                <input type="date" id="endDate">
+            </div>
+
+            <button class="action-btn" onclick="fetchMultiParameterData()">Analyze ➜</button>
+        </div>
+
+        <div style="height: 450px; position: relative;">
+            <canvas id="parameterChart"></canvas>
+        </div>
+    </div>
+
+    <div id="chemical" class="chart-section">
+        <h3>Total Chemical Consumption</h3>
+        <div style="height: 400px;"><canvas id="chemicalChart"></canvas></div>
+    </div>
+
+    <div id="breakdown" class="chart-section">
+        <h3>Breakdown Categories</h3>
+        <div style="height: 400px; max-width: 600px; margin: 0 auto;"><canvas id="breakdownChart"></canvas></div>
+    </div>
+</div>
+
+<script>
+    const allBaths = <%- JSON.stringify(baths) %>; 
+    const chemData = <%- JSON.stringify(chemData) %>;
+    const breakdownData = <%- JSON.stringify(breakdownData) %>;
+</script>
+
+<script>
+    // --- UI HELPERS ---
+    function switchView(viewId) {
+        document.querySelectorAll('.chart-section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // Default Dates
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7);
+    document.getElementById('endDate').valueAsDate = today;
+    document.getElementById('startDate').valueAsDate = lastWeek;
+
+    // --- BATH SELECTOR LOGIC ---
+    function filterBathsByLine() {
+        const lineVal = document.getElementById('lineSelect').value;
+        const bathSelect = document.getElementById('bathSelect');
+        bathSelect.innerHTML = ""; 
+        const filteredBaths = allBaths.filter(b => b.line_number == lineVal);
+        filteredBaths.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            opt.text = b.bath_name;
+            bathSelect.appendChild(opt);
+        });
+    }
+    filterBathsByLine(); 
+
+    // --- MULTI-PARAMETER CHART LOGIC ---
+    let paramChartInstance = null;
+    
+    // Colors for different lines to make them distinct
+    const lineColors = ['#007bff', '#e83e8c', '#28a745', '#fd7e14', '#6610f2', '#17a2b8', '#ffc107', '#343a40'];
+
+    async function fetchMultiParameterData() {
+        const bathId = document.getElementById('bathSelect').value;
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        
+        // 1. Get all checked checkboxes
+        const checkboxes = document.querySelectorAll('.param-chk:checked');
+        if(checkboxes.length === 0) { alert("Please select at least one parameter."); return; }
+
+        const datasets = [];
+        let allLabels = new Set(); // To collect all unique timestamps
+
+        // 2. Loop through checked boxes and fetch data for EACH one
+        for (let i = 0; i < checkboxes.length; i++) {
+            const paramKey = checkboxes[i].value;
+            const paramLabel = checkboxes[i].parentElement.innerText;
+
+            try {
+                const response = await fetch('/analytics/get-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bath_id: bathId, parameter: paramKey, start_date: start, end_date: end })
+                });
+                
+                const result = await response.json();
+                if(result.data) {
+                    // Normalize Data
+                    const dataPoints = result.data.map(row => {
+                        const d = new Date(row.log_time);
+                        const label = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+                        allLabels.add(label); // Collect time labels
+                        return { x: label, y: row.value === "" ? null : parseFloat(row.value) };
+                    });
+
+                    datasets.push({
+                        label: paramLabel,
+                        data: dataPoints,
+                        borderColor: lineColors[i % lineColors.length], // Cycle through colors
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 3
+                    });
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // 3. Sort labels chronologically
+        const sortedLabels = Array.from(allLabels).sort((a, b) => new Date(a) - new Date(b));
+
+        // 4. Draw Chart
+        const ctx = document.getElementById('parameterChart').getContext('2d');
+        if (paramChartInstance) paramChartInstance.destroy();
+
+        paramChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedLabels, // X-Axis
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false }, // Hover shows all lines
+                scales: {
+                    x: { title: { display: true, text: 'Time Logged' } },
+                    y: { title: { display: true, text: 'Value' } }
+                }
+            }
+        });
+    }
+    
+    // Load default on start
+    fetchMultiParameterData();
+
+    // --- STATIC CHARTS ---
+    if(chemData.length) {
+        new Chart(document.getElementById('chemicalChart'), {
+            type: 'bar',
+            data: {
+                labels: chemData.map(d => d.chemical_name),
+                datasets: [{ label: 'Liters', data: chemData.map(d => d.total_liters), backgroundColor: '#36A2EB' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    if(breakdownData.length) {
+        new Chart(document.getElementById('breakdownChart'), {
+            type: 'doughnut',
+            data: {
+                labels: breakdownData.map(d => d.category),
+                datasets: [{ data: breakdownData.map(d => d.issue_count), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+</script>
+
+</body>
+</html>

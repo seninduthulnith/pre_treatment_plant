@@ -1,0 +1,90 @@
+body { font-family: sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+.login-container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 300px; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; }
+input { width: 100%; padding: 8px; box-sizing: border-box; }
+button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+button:hover { background: #0056b3; }
+
+/* Dashboard Styles */
+.header { background: #333; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+.btn-logout { background: #d9534f; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
+.main-content { padding: 20px; max-width: 1000px; margin: 0 auto; }
+
+.bath-table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.bath-table th, .bath-table td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+.bath-table th { background-color: #f8f9fa; font-weight: bold; color: #333; }
+.bath-table tr:hover { background-color: #f1f1f1; }
+
+.btn-action { background-color: #28a745; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
+.btn-action:hover { background-color: #218838; }
+
+/* New Button Styles */
+.btn-icon { padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 0.85rem; margin-right: 4px; color: white; display: inline-block; }
+.btn-blue { background-color: #007bff; }
+.btn-blue:hover { background-color: #0056b3; }
+.btn-green { background-color: #28a745; }
+.btn-green:hover { background-color: #218838; }
+.btn-red { background-color: #dc3545; }
+.btn-red:hover { background-color: #c82333; }
+
+/* --- NEW SIDE-BY-SIDE LAYOUT --- */
+
+/* Main wrapper that holds the two columns */
+.dashboard-grid {
+    display: flex;
+    flex-wrap: wrap; /* Wraps to vertical on mobile phones */
+    gap: 20px;       /* Space between the two tables */
+    padding: 20px;
+    justify-content: center; /* Center them on huge screens */
+}
+
+/* Individual Card for each Production Line */
+.line-card {
+    background: white;
+    flex: 1;              /* Each line takes equal width */
+    min-width: 500px;     /* Don't let them get too skinny */
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    overflow: hidden;     /* Keeps corners rounded */
+    border-top: 5px solid #333; /* Dark top border for contrast */
+}
+
+/* Header inside the card */
+.line-title {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    font-size: 1.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Make the table font slightly smaller to fit side-by-side */
+.bath-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem; /* Slightly smaller text for density */
+}
+
+.bath-table th {
+    background-color: #eceff1;
+    color: #555;
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.bath-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Adjust button sizes for the tighter layout */
+.btn-icon {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+}

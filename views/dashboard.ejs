@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shamini Rubber - Chemical Plant Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* DASHBOARD STYLES */
+        body { font-family: 'Roboto', sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }
+        
+        .header { background-color: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-logout { background: #e74c3c; color: white; text-decoration: none; padding: 8px 12px; border-radius: 4px; font-weight: bold; margin-left: 10px; }
+
+        .tabs { display: flex; background: white; padding: 10px 20px; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-items: center; }
+        .tab-btn { background: #e0e0e0; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; color: #555; transition: 0.3s; font-size: 1rem; }
+        .tab-btn:hover { background-color: #d6d6d6; }
+        .tab-btn.active { background: #007bff; color: white; }
+        
+        .btn-report { background-color: #dc3545; color: white; text-decoration: none; font-weight: bold; padding: 10px 20px; border-radius: 20px; margin-left: auto; }
+
+        .container { padding: 20px; }
+        .bath-grid { display: none; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        /* The class that shows the content */
+        .bath-grid.active-content { display: grid; }
+        
+        .bath-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #28a745; transition: transform 0.2s; }
+        .bath-card:hover { transform: translateY(-3px); }
+        .bath-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+        
+        .action-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn { border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
+        .btn-log { background: #007bff; }
+        .btn-log:hover { background: #0056b3; }
+        .btn-chem { background: #28a745; }
+        .btn-chem:hover { background: #1e7e34; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 400px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
+        
+        .form-group { margin-bottom: 15px; display: none; }
+        .form-group.visible { display: block; } 
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        
+        /* Read-Only Input Style */
+        .chem-input-readonly { 
+            background-color: #e8f5e9; 
+            color: #2e7d32; 
+            font-weight: bold; 
+            border: 1px solid #c8e6c9; 
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none; 
+        }
+
+        /* Phosphate Extras Box */
+        .phosphate-extras {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #90caf9;
+            margin-top: 15px;
+            display: none; /* Hidden by default */
+        }
+        .phosphate-extras h3 { margin-top: 0; font-size: 1rem; color: #1565c0; }
+        .phosphate-extras label { display: block; margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+        .phosphate-extras input { width: 100%; padding: 8px; border: 1px solid #bbdefb; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏭 Plant Dashboard</h1>
+        <div class="user-info">Logged in as: <strong><%= user.username %></strong> <a href="/logout" class="btn-logout">Logout</a></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="btn-line-1" onclick="showLine(1)">Line 01</button>
+        <button class="tab-btn" id="btn-line-2" onclick="showLine(2)">Line 02</button>
+        
+        <% if (user.role === 'qa') { %>
+            <a href="/analytics/spc" class="tab-btn" style="text-decoration: none; background-color: #8e44ad; color: white; display: inline-block;">
+                📈 Analytics
+            </a>
+        <% } %>
+
+        <a href="#" id="global-report-btn" class="btn-report">⚠️ Report Breakdown</a>
+    </div>
+
+    <div class="container">
+        
+        <div id="content-line-1" class="bath-grid active-content">
+            <% items.filter(b => 
+                b.line_number === 1 && 
+                !b.bath_name.toLowerCase().includes('motor') && 
+                !b.bath_name.toLowerCase().includes('air line') && 
+                !b.bath_name.toLowerCase().includes('water line')
+            ).forEach(bath => { %>
+                <div class="bath-card">
+                    <div class="bath-title"><%= bath.bath_name %></div>
+                    <div>Step <%= bath.step_number %> • <%= bath.capacity_liters %>L</div>
+                    <div class="action-buttons">
+                        <button class="btn btn-log" onclick="openCheckModal('<%= bath.id %>', '<%= bath.bath_name %>', 1)">📋 Check Parameters</button>
+                        <% if (!bath.bath_name.toLowerCase().includes('rinse')) { %>
+                            <button class="btn btn-chem" onclick="openChemicalModal('<%= bath.id %>', '<%= bath.bath_name %>', 1, '<%= bath.chemical_name || "Manual Check" %>')">🧪 Add Chemical</button>
+                        <% } %>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+
+        <div id="content-line-2" class="bath-grid">
+            <% items.filter(b => 
+                b.line_number === 2 && 
+                !b.bath_name.toLowerCase().includes('motor') && 
+                !b.bath_name.toLowerCase().includes('air line') && 
+                !b.bath_name.toLowerCase().includes('water line')
+            ).forEach(bath => { %>
+                <div class="bath-card">
+                    <div class="bath-title"><%= bath.bath_name %></div>
+                    <div>Step <%= bath.step_number %> • <%= bath.capacity_liters %>L</div>
+                    <div class="action-buttons">
+                        <button class="btn btn-log" onclick="openCheckModal('<%= bath.id %>', '<%= bath.bath_name %>', 2)">📋 Check Parameters</button>
+                        <% if (!bath.bath_name.toLowerCase().includes('rinse')) { %>
+                            <button class="btn btn-chem" onclick="openChemicalModal('<%= bath.id %>', '<%= bath.bath_name %>', 2, '<%= bath.chemical_name || "Manual Check" %>')">🧪 Add Chemical</button>
+                        <% } %>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+
+    </div>
+
+    <div id="checkModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Log Parameters</h2>
+            
+            <form action="/save-bath-log" method="POST">
+                
+                <input type="hidden" id="modalBathId" name="bath_id">
+                <input type="hidden" id="hiddenLineParam" name="line_number" value="1">
+
+                <div class="form-group" id="field-temp">
+                    <label>🌡️ Temperature (°C):</label>
+                    <input type="number" step="0.1" name="temp">
+                </div>
+                
+                <div class="form-group" id="field-ph">
+                    <label>🧪 pH Level:</label>
+                    <input type="number" step="0.1" name="ph">
+                </div>
+                
+                <div class="form-group" id="field-fralka">
+                    <label>💧 Free Alkali Pointage:</label>
+                    <input type="number" step="0.1" name="concentration">
+                </div>
+                
+                <div class="form-group" id="field-ta">
+                    <label>⚗️ Total Acid Pointage (TA):</label>
+                    <input type="number" step="0.1" name="ta_pointage">
+                </div>
+                
+                <div class="form-group" id="field-fa">
+                    <label>🔥 Free Acid Pointage (FA):</label>
+                    <input type="number" step="0.1" name="fa_pointage">
+                </div>
+                
+                <div class="form-group" id="field-oil">
+                    <label>🛢️ Oil Content:</label>
+                    <input type="number" step="0.1" name="oil_content">
+                </div>
+                
+                <div class="form-group" id="field-iron">
+                    <label>🔩 Iron Content:</label>
+                    <input type="number" step="0.1" name="iron_content">
+                </div>
+                
+                <div class="form-group" id="field-starch">
+                    <label>🎨 Starch Iodide Color:</label>
+                    <select name="starch_colour">
+                        <option value="">-- Select Color --</option>
+                        <option value="Blue/Blue Black">Blue/Blue Black</option>
+                        <option value="Black">Black</option>
+                        <option value="Pale Blue or Colourless">Pale Blue or Colourless</option>
+                    </select>
+                </div>
+
+                <div class="form-group visible">
+                    <label>📝 Notes:</label>
+                    <input type="text" name="notes">
+                </div>
+
+                <button type="submit" class="btn btn-log" style="margin-top:10px;">💾 Save Data</button>
+                <button type="button" onclick="closeModal('checkModal')" style="background:#e74c3c; width:100%; border:none; padding:10px; color:white; border-radius:4px; margin-top:5px; cursor:pointer;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="chemicalModal" class="modal">
+        <div class="modal-content">
+            <h2 id="chemModalTitle">Add Chemical</h2>
+            
+            <form action="/save-chemical-log" method="POST">
+                <input type="hidden" id="chemModalBathId" name="bath_id">
+                <input type="hidden" id="hiddenLineChem" name="line_number" value="1">
+                
+                <div class="form-group visible">
+                    <label>Chemical Type:</label>
+                    <input type="text" id="inputChemName" name="chemical_name" class="chem-input-readonly" readonly>
+                    
+                    <label style="margin-top: 10px;">🧪 Amount Added (Kg / Liters):</label>
+                    <input type="number" step="0.1" name="amount_added" placeholder="e.g. 5.5">
+                </div>
+
+                <div id="phosphate-extras" class="phosphate-extras">
+                    <h3>➕ Phosphate Additives (Optional)</h3>
+                    
+                    <label>SP-Accelerator (Kg/L):</label>
+                    <input type="number" step="0.01" name="sp_accelerator" placeholder="Leave empty if none">
+
+                    <label>SP-Starter (Kg/L):</label>
+                    <input type="number" step="0.01" name="sp_starter" placeholder="Leave empty if none">
+                </div>
+
+                <button type="submit" class="btn btn-chem" style="margin-top:10px;">✅ Save Chemical</button>
+                <button type="button" onclick="closeModal('chemicalModal')" style="background:#e74c3c; width:100%; border:none; padding:10px; color:white; border-radius:4px; margin-top:5px; cursor:pointer;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 1. OPEN PARAMETER MODAL
+        function openCheckModal(id, name, lineNum) {
+            document.getElementById('checkModal').style.display = 'flex';
+            document.getElementById('modalTitle').innerText = 'Check: ' + name;
+            document.getElementById('modalBathId').value = id;
+            
+            // This ensures we know which line to return to
+            document.getElementById('hiddenLineParam').value = lineNum;
+
+            // Hide all special fields first
+            const fields = ['temp', 'ph', 'fralka', 'ta', 'fa', 'oil', 'iron', 'starch'];
+            fields.forEach(f => {
+                const el = document.getElementById('field-' + f);
+                if(el) el.classList.remove('visible');
+            });
+
+            // Show fields based on name
+            const n = name.toLowerCase();
+            if (n.includes('degrease')) {
+                show(['temp', 'fralka', 'oil']);
+            } else if (n.includes('derust')) {
+                show(['fa', 'iron']);
+            } else if (n.includes('phosphate')) {
+                show(['temp', 'ta', 'fa', 'starch']);
+            } else if (n.includes('passivat')) {
+                show(['ph', 'temp']); // Passivation: pH + Temperature
+            } else if (n.includes('rinse')) {
+                show(['ph', 'temp']); // Water Rinse: pH + Temperature
+            } else {
+                show(['ph']);
+            }
+        }
+
+        // 2. OPEN CHEMICAL MODAL (UPDATED)
+        function openChemicalModal(id, name, lineNum, chemicalName) {
+            document.getElementById('chemicalModal').style.display = 'flex';
+            document.getElementById('chemModalTitle').innerText = 'Add: ' + name;
+            document.getElementById('chemModalBathId').value = id;
+            
+            // This ensures we know which line to return to
+            document.getElementById('hiddenLineChem').value = lineNum;
+            
+            document.getElementById('inputChemName').value = chemicalName || "Manual Check";
+
+            // CHECK FOR PHOSPHATE
+            const phosphateBox = document.getElementById('phosphate-extras');
+            if (name.toLowerCase().includes('phosphate')) {
+                phosphateBox.style.display = 'block';
+            } else {
+                phosphateBox.style.display = 'none';
+            }
+        }
+
+        function show(ids) {
+            ids.forEach(id => {
+                const el = document.getElementById('field-' + id);
+                if(el) el.classList.add('visible');
+            });
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // 3. TAB SWITCHING LOGIC
+        function showLine(lineNum) {
+            // Hide all content divs
+            document.querySelectorAll('.bath-grid').forEach(el => el.classList.remove('active-content'));
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Show specific content
+            const content = document.getElementById('content-line-' + lineNum);
+            const btn = document.getElementById('btn-line-' + lineNum);
+
+            if(content) content.classList.add('active-content');
+            if(btn) btn.classList.add('active');
+            
+            // Update Report Button Link
+            const reportBtn = document.getElementById('global-report-btn');
+            if(reportBtn) reportBtn.href = `/breakdown/manage?line=${lineNum}`;
+        }
+
+        // 4. AUTO-DETECT TAB ON RELOAD
+        document.addEventListener("DOMContentLoaded", function() {
+            let activeLine = 1; // Default to Line 1
+
+            // Method A: Check for Query Parameter (?line=2)
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('line')) {
+                activeLine = parseInt(params.get('line'));
+            } 
+            
+            // Method B: Check for Hash Anchor (#line-2)
+            else if (window.location.hash) {
+                if (window.location.hash.includes('line-2')) {
+                    activeLine = 2;
+                } else if (window.location.hash.includes('line-1')) {
+                    activeLine = 1;
+                }
+            }
+
+            // Apply the tab switch
+            showLine(activeLine);
+        });
+    </script>
+
+</body>
+</html>

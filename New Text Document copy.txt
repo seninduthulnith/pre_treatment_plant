@@ -1,0 +1,3 @@
+analytics_1.ejs approach is good but we want to go deep.
+
+after click parameter button. it has Line 01 , Line 02 to select and 12 baths with filter diferent parameters

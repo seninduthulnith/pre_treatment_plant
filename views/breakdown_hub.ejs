@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Tickets - Shamini Rubber</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: #eaeff2; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .card { background: white; padding: 20px; margin-top: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 8px solid #ccc; }
+        .card.Maintenance { border-left-color: #e74c3c; } /* Red */
+        .card.Quality { border-left-color: #f1c40f; } /* Yellow */
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
+        .Pending { background: #e74c3c; }
+        .In-Progress { background: #3498db; }
+        .Completed { background: #27ae60; }
+
+        .ticket-id { font-weight: bold; color: #555; background: #eee; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 8px; }
+
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; margin-top: 10px; }
+        .btn-start { background: #3498db; width: 100%; }
+        .btn-end { background: #27ae60; width: 100%; }
+        .btn-report { background: #8e44ad; width: 100%; }
+
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .timestamp { font-size: 0.85rem; color: #7f8c8d; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>🛠️ Job Ticket System</h2>
+        <div>
+            User: <strong><%= user.emp_no %> (<%= user.role.toUpperCase() %>)</strong>
+            <% if(['qc', 'chemical', 'qa', 'tester'].includes(user.role)) { %>
+                <a href="/dashboard" style="color:white; margin-left:15px; text-decoration:none;">Back to Dashboard</a>
+            <% } else { %>
+                <a href="/logout" style="color:white; margin-left:15px; text-decoration:none;">Logout</a>
+            <% } %>
+        </div>
+    </div>
+
+    <% if (user.role !== 'maintenance') { %> 
+    <div class="card" style="border-left-color: #8e44ad;">
+        <h3>📢 Report New Issue</h3>
+        <form action="/breakdown/report" method="POST">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>Line No:</label>
+                    <select name="line_number" id="lineSelect" onchange="filterBaths()">
+                        <option value="1">Line 1</option>
+                        <option value="2">Line 2</option>
+                        <option value="3">Utilities</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label>Machine/Bath:</label>
+                    <select name="bath_id" id="bathSelect">
+                        <option value="" data-line="all">-- General / Other --</option>
+                        <% 
+                           let currentLine = 0;
+                           let count = 1;
+                        %>
+                        <% allBaths.forEach(b => { 
+                            if (b.line_number !== currentLine) {
+                                currentLine = b.line_number;
+                                count = 1;
+                            }
+                            let prefix = String(count++).padStart(2, '0');
+                        %>
+                            <option value="<%= b.id %>" data-line="<%= b.line_number %>">
+                                <%= prefix %>) <%= b.bath_name %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label>Category:</label>
+                    <select name="category">
+                        <option value="Maintenance">Maintenance (Mechanical/Electrical)</option>
+                        <option value="Quality">Quality (Chemical/Process)</option>
+                    </select>
+                </div>
+            </div>
+            <label>Description:</label>
+            <textarea name="description" rows="2" required placeholder="Describe the fault..."></textarea>
+            <button class="btn btn-report">Submit Ticket</button>
+        </form>
+    </div>
+    <% } %>
+
+    <h3 style="margin-top:30px;">Active Tickets</h3>
+    
+    <% if (breakdowns.length === 0) { %>
+        <p style="text-align:center; color:#7f8c8d;">No issues found for your department. ✅</p>
+    <% } %>
+
+    <% breakdowns.forEach(job => { %>
+        <div class="card <%= job.category %>">
+            
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div style="margin-bottom: 5px;">
+                        <span class="ticket-id">Ticket #<%= job.id %></span>
+                        
+                        <span class="status-badge <%= job.status.replace(' ', '-') %>">
+                            <%= job.status %>
+                        </span>
+                    </div>
+                    
+                    <strong style="color: #2c3e50; font-size:1.1rem;">
+                        <%= job.category %>: <%= job.bath_name || 'General Issue' %>
+                    </strong>
+                </div>
+                
+                <div style="text-align:right;">
+                    <small style="font-weight:bold; color:#555;">Line <%= job.line_number %></small><br>
+                    <small>Reported by: <%= job.reporter %></small>
+                </div>
+            </div>
+
+            <p style="background:#f9f9f9; padding:10px; border-radius:4px; margin:10px 0;">
+                "<%= job.description %>"
+            </p>
+
+            <div class="timestamp">
+                Created: <%= new Date(job.created_at).toLocaleString() %>
+                <% if(job.repair_start_time) { %> <br>Started: <%= new Date(job.repair_start_time).toLocaleString() %> <% } %>
+                <% if(job.repair_end_time) { %> <br>Finished: <%= new Date(job.repair_end_time).toLocaleString() %> <% } %>
+            </div>
+
+            <% if(job.status === 'Completed') { %>
+                <p><strong>✅ Solution:</strong> <%= job.solution_notes %></p>
+            <% } %>
+
+            <% 
+               let canFix = false;
+               if (user.role === 'maintenance' && job.category === 'Maintenance') canFix = true;
+               if (['chemical', 'qc'].includes(user.role) && job.category === 'Quality') canFix = true;
+               if (['qa', 'tester'].includes(user.role)) canFix = true; 
+            %>
+
+            <% if (canFix && job.status !== 'Completed') { %>
+                <% if (job.status === 'Pending') { %>
+                    <form action="/breakdown/start" method="POST">
+                        <input type="hidden" name="breakdown_id" value="<%= job.id %>">
+                        <button class="btn btn-start">▶️ Start Repair / Process</button>
+                    </form>
+                <% } %>
+
+                <% if (job.status === 'In Progress') { %>
+                    <form action="/breakdown/end" method="POST">
+                        <input type="hidden" name="breakdown_id" value="<%= job.id %>">
+                        <textarea name="solution" placeholder="What was done to fix it?" required style="margin-bottom:0;"></textarea>
+                        <button class="btn btn-end">✅ Finish Repair / Process</button>
+                    </form>
+                <% } %>
+            <% } %>
+        </div>
+    <% }) %>
+
+    <script>
+        function filterBaths() {
+            var lineSelect = document.getElementById("lineSelect");
+            var bathSelect = document.getElementById("bathSelect");
+            var selectedLine = lineSelect.value;
+            var options = bathSelect.getElementsByTagName("option");
+
+            bathSelect.selectedIndex = 0; 
+
+            for (var i = 0; i < options.length; i++) {
+                var optionLine = options[i].getAttribute("data-line");
+                if (optionLine === "all") {
+                    options[i].style.display = "block";
+                } else if (optionLine === selectedLine) {
+                    options[i].style.display = "block";
+                } else {
+                    options[i].style.display = "none";
+                }
+            }
+        }
+        window.onload = filterBaths;
+    </script>
+</body>
+</html>
